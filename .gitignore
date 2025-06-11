@@ -1,0 +1,22 @@
+# Python virtual environment
+venv/
+.venv/
+env/
+.env/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables - DO NOT COMMIT THIS FILE
+.env
+
+# Credentials and tokens - DO NOT COMMIT ANYTHING IN THIS FOLDER
+credentials/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp

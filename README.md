@@ -40,3 +40,39 @@ tests/
 └── test_file_service.py
 
 Also there is .env in the root
+
+Now, let's fix the root cause to prevent this from happening again.
+
+Move the .gitignore file from the credentials/ folder to the root of your intelligent_agent/ project.
+
+Replace the content of your root .gitignore file with this more robust version:
+
+Code snippet
+
+# Python virtual environment
+
+venv/
+.venv/
+env/
+.env/
+
+# Python cache files
+
+**pycache**/
+_.pyc
+_.pyo
+\*.pyd
+
+# Environment variables - DO NOT COMMIT THIS FILE
+
+.env
+
+# Credentials and tokens - DO NOT COMMIT ANYTHING IN THIS FOLDER
+
+credentials/
+
+# IDE and editor files
+
+.vscode/
+.idea/
+\*.swp
