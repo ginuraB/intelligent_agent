@@ -1,0 +1,14 @@
+# requirements.txt
+# List of Python packages required for the project.
+# For Google API integration
+
+
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
+# For managing environment variables (API keys, etc.)
+python-dotenv
+
+# For testing (we will use this starting in Week 2)
+pytest
