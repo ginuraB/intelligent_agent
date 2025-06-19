@@ -6,9 +6,12 @@ import re
 # --- Configuration for Classification Rules ---
 # These lists can be expanded or moved to a config file later.
 IMPORTANT_SENDERS = [
-    "supervisor@example.com",
-    "ceo@example.com"
+    "k.g.binath@gmail.com",
+    "uniginura@gmail.com"
 ]
+
+# NEW: Added a list for important keywords
+IMPORTANT_KEYWORDS = ["urgent", "action required", "important", "critical"]
 
 SPAM_KEYWORDS = [
     "congratulations", "winner", "claim your prize", "free money", 
@@ -33,20 +36,25 @@ def classify_email(email_data):
     subject = email_data.get('subject', '').lower()
     body = email_data.get('body', '').lower()
 
-    # Rule 1: Check for important senders
-    # We use regex to find the email address, as the 'from' header can be "Name <email@addr.com>"
+    # Rule 1: Check for important senders (Highest Priority)
     for important_sender in IMPORTANT_SENDERS:
         if important_sender in sender:
             print(f"Classification: IMPORTANT (sender is {important_sender})")
             return "IMPORTANT"
 
-    # Rule 2: Check for meeting-related keywords
+    # Rule 2: Check for important keywords in the subject
+    for keyword in IMPORTANT_KEYWORDS:
+        if keyword in subject:
+            print(f"Classification: IMPORTANT (found keyword: '{keyword}')")
+            return "IMPORTANT"
+
+    # Rule 3: Check for meeting-related keywords
     for keyword in MEETING_KEYWORDS:
         if keyword in subject or keyword in body:
             print(f"Classification: MEETING_REQUEST (found keyword: '{keyword}')")
             return "MEETING_REQUEST"
 
-    # Rule 3: Check for spam keywords
+    # Rule 4: Check for spam keywords
     for keyword in SPAM_KEYWORDS:
         if keyword in subject or keyword in body:
             print(f"Classification: SPAM (found keyword: '{keyword}')")
@@ -64,8 +72,13 @@ if __name__ == '__main__':
     test_emails = [
         {
             'sender': 'Your Boss <supervisor@example.com>',
-            'subject': 'URGENT: Project Update Required',
+            'subject': 'Project Update Required',
             'body': 'Please provide the latest numbers for Project X.'
+        },
+        {
+            'sender': 'another_colleague@example.com',
+            'subject': 'URGENT: Project Update Required', # Test new rule
+            'body': 'The client needs this now.'
         },
         {
             'sender': 'marketing@example-lottery.com',
@@ -91,4 +104,3 @@ if __name__ == '__main__':
         classification = classify_email(email)
         print(f"Final Classification Result: {classification}")
         print("-" * 20)
-

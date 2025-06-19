@@ -4,10 +4,14 @@
 import time
 from config import SUPERVISOR_EMAIL, SLEEP_TIME_SECONDS
 from agent_core.decision_maker import classify_email
-from integrations.email_service import fetch_unread_emails
-# We will import these later when we implement actions
-# from integrations.calendar_service import create_calendar_event
-# from integrations.file_service import upload_file_to_drive
+from agent_core.text_parser import parse_meeting_details
+from integrations.email_service import (
+    fetch_unread_emails, 
+    send_email, 
+    mark_as_read, 
+    move_to_spam
+)
+from integrations.calendar_service import create_calendar_event
 
 def run_main_loop():
     """
@@ -37,20 +41,46 @@ def run_main_loop():
 
                     classification = classify_email(email)
 
-                    # 3. Action (Placeholder): Decide what action to take based on classification
-                    # In the future, this section will call other services.
+                    # 3. Action: Perform actions based on classification
                     if classification == "IMPORTANT":
                         print("ACTION: This is an important email. Escalating to supervisor.")
-                        # TODO: Call email_service.send_email to notify SUPERVISOR_EMAIL
+                        escalation_subject = f"URGENT: Agent Escalation - {email.get('subject')}"
+                        escalation_body = (
+                            "This email was flagged as important by the Intelligent Agent.\n\n"
+                            f"Original Sender: {email.get('sender')}\n"
+                            f"Original Subject: {email.get('subject')}\n\n"
+                            "--- Original Email Body ---\n"
+                            f"{email.get('body')}"
+                        )
+                        send_email(to=SUPERVISOR_EMAIL, subject=escalation_subject, body_text=escalation_body)
+                        mark_as_read(email['id'])
+
                     elif classification == "MEETING_REQUEST":
-                        print("ACTION: This is a meeting request.")
-                        # TODO: Call a function to parse date/time and then use calendar_service
+                        print("ACTION: This is a meeting request. Attempting to parse details.")
+                        # Combine subject and body for better parsing context
+                        full_text = f"{email.get('subject', '')}\n{email.get('body', '')}"
+                        event_details = parse_meeting_details(full_text)
+                        
+                        if event_details:
+                            print(f"Parsed event details: {event_details['summary']} at {event_details['start_time']}")
+                            # Create the calendar event
+                            create_calendar_event(
+                                summary=event_details['summary'],
+                                description=f"Created from an email request.\n\n--- Original Email Snippet ---\n{email.get('snippet')}",
+                                start_time=event_details['start_time'],
+                                end_time=event_details['end_time'],
+                                attendees=[email.get('sender')] # Automatically invite the sender
+                            )
+                        else:
+                            print("Could not automatically parse meeting details. Manual action may be required.")
+                        
+                        mark_as_read(email['id'])
+
                     elif classification == "SPAM":
-                        print("ACTION: This is spam.")
-                        # TODO: Call email_service.move_to_spam(email['id'])
+                        move_to_spam(email['id'])
+                        
                     else: # NORMAL
-                        print("ACTION: No special action required. Marking as read.")
-                        # TODO: Call email_service.mark_as_read(email['id'])
+                        mark_as_read(email['id'])
             
             # Wait for the next cycle
             print("\n--- Cycle complete. Waiting for next check... ---")

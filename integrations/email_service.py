@@ -2,6 +2,7 @@
 # This module contains all functions for interacting with the Gmail API.
 
 import base64
+from email.mime.text import MIMEText
 from googleapiclient.errors import HttpError
 # Import the authentication service we created
 from integrations.auth_service import get_google_api_service
@@ -54,14 +55,12 @@ def fetch_unread_emails():
             # Get the email body
             body = ''
             if 'parts' in payload:
-                # This handles multipart emails (e.g., with attachments or both text and html)
                 for part in payload['parts']:
                     if part['mimeType'] == 'text/plain':
                         encoded_body = part.get('body', {}).get('data', '')
                         body = base64.urlsafe_b64decode(encoded_body).decode('utf-8')
                         break
             else:
-                # This handles simple, single-part emails
                 encoded_body = payload.get('body', {}).get('data', '')
                 if encoded_body:
                     body = base64.urlsafe_b64decode(encoded_body).decode('utf-8')
@@ -81,57 +80,59 @@ def fetch_unread_emails():
 
 def send_email(to, subject, body_text):
     """
-    Sends an email on behalf of the user.
-    (This is a placeholder function to be fully implemented later)
-    """
-    print(f"\n--- (SIMULATION) ---")
-    print(f"Attempting to send email to: {to}")
-    print(f"Subject: {subject}")
-    print("This function will be implemented in a future step.")
-    print("--------------------")
-    # TODO: Implement the full email sending logic using MIMEText and the API.
-    pass
-
-
-def list_gmail_labels():
-    """
-    Connects to the Gmail API and lists the user's labels.
-    This is a test function to verify that authentication is working.
+    Creates and sends an email on behalf of the user.
     """
     try:
         service = get_google_api_service('gmail', 'v1')
         if not service:
-            print("Failed to get Gmail service. Aborting.")
+            print("Failed to get Gmail service for sending email.")
             return
 
-        print("\nAttempting to call the Gmail API to list labels...")
-        results = service.users().labels().list(userId='me').execute()
-        labels = results.get('labels', [])
-
-        if not labels:
-            print('No labels found.')
-            return
+        # Create the email message object using MIMEText
+        message = MIMEText(body_text)
+        message['to'] = to
+        message['subject'] = subject
         
-        print('\nGmail Labels:')
-        for label in labels:
-            print(f"- {label['name']} (ID: {label['id']})")
-        print("\nSuccessfully connected to Gmail and fetched labels!")
+        # The API requires the message to be base64url encoded
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+
+        create_message = {'raw': encoded_message}
+        
+        # Call the API to send the email
+        send_message = service.users().messages().send(userId="me", body=create_message).execute()
+        print(f"Email sent successfully. Message ID: {send_message['id']}")
 
     except HttpError as error:
-        print(f"An error occurred with the Gmail API: {error}")
+        print(f"An error occurred while sending email: {error}")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        print(f"An unexpected error occurred while sending email: {e}")
 
+def modify_message_labels(message_id, labels_to_add=[], labels_to_remove=[]):
+    """A helper function to add or remove labels from a message."""
+    try:
+        service = get_google_api_service('gmail', 'v1')
+        if not service:
+            print("Failed to get Gmail service for modifying labels.")
+            return
 
-if __name__ == '__main__':
-    print("--- Running Email Fetching Test ---")
-    unread_emails = fetch_unread_emails()
-    if unread_emails:
-        print(f"\n--- Successfully fetched {len(unread_emails)} email(s) ---")
-        # Print details of the first email as a sample
-        first_email = unread_emails[0]
-        print(f"From: {first_email['sender']}")
-        print(f"Subject: {first_email['subject']}")
-        print(f"Snippet: {first_email['snippet']}")
-        print("-" * 20)
+        body = {
+            'addLabelIds': labels_to_add,
+            'removeLabelIds': labels_to_remove
+        }
+        service.users().messages().modify(userId='me', id=message_id, body=body).execute()
+        # print(f"Successfully modified labels for message {message_id}.")
+        return True
+    except HttpError as error:
+        print(f"An error occurred while modifying labels: {error}")
+        return False
+
+def mark_as_read(message_id):
+    """Marks a specific message as read by removing the 'UNREAD' label."""
+    print(f"ACTION: Marking message {message_id} as read.")
+    modify_message_labels(message_id, labels_to_remove=['UNREAD'])
+
+def move_to_spam(message_id):
+    """Moves a specific message to Spam by adding the 'SPAM' label."""
+    print(f"ACTION: Moving message {message_id} to Spam.")
+    modify_message_labels(message_id, labels_to_add=['SPAM'])
 
